@@ -1,0 +1,1235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PWL Asphalt Sampling Tracker</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      line-height: 1.5;
+      color: #333;
+      background: #f9f9f9;
+      padding: 16px;
+    }
+    .container { max-width: 1600px; margin: 0 auto; }
+
+    h1 { font-size: 1.2rem; margin-bottom: 0.5rem; }
+    h2 { font-size: 1rem; margin: 1rem 0 0.5rem 0; font-weight: 600; }
+
+    .banner {
+      padding: 12px; margin-bottom: 16px; border-radius: 4px;
+      background: #fff3cd; border-left: 4px solid #ff9800;
+    }
+    .banner.error { background: #f8d7da; border-left-color: #dc3545; color: #721c24; }
+    .banner.success { background: #d4edda; border-left-color: #28a745; color: #155724; }
+
+    .summary-box {
+      background: white; padding: 16px; margin-bottom: 16px;
+      border: 1px solid #ddd; border-radius: 4px;
+    }
+    .summary-line { margin: 0.5rem 0; font-size: 0.95rem; }
+    .summary-line strong { display: inline-block; min-width: 120px; }
+
+    .wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    @media (max-width: 1100px) {
+      .wrap { grid-template-columns: 1fr; }
+    }
+
+    section {
+      background: white; padding: 16px; border: 1px solid #ddd;
+      border-radius: 4px; overflow-x: auto;
+    }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-bottom: 12px; }
+    th {
+      background: #f5f5f5; border: 1px solid #ddd; padding: 8px;
+      text-align: left; font-weight: 600; font-size: 0.85rem;
+    }
+    td { border: 1px solid #ddd; padding: 8px; }
+    tbody tr:nth-child(even) { background: #f9f9f9; }
+
+    .lot-header { background: #e8f4f8; font-weight: 600; }
+    .lot-header td { border-bottom: 2px solid #b3d9e8; }
+
+    input[type="text"], input[type="number"], input[type="date"], select {
+      font-family: inherit; font-size: 0.9rem; padding: 6px;
+      border: 1px solid #ccc; border-radius: 3px;
+    }
+    input[type="text"]:focus, input[type="number"]:focus, input[type="date"]:focus, select:focus {
+      outline: none; border-color: #0066cc; box-shadow: 0 0 4px rgba(0,102,204,0.3);
+    }
+
+    button {
+      background: #0066cc; color: white; border: none; padding: 8px 16px;
+      border-radius: 3px; cursor: pointer; font-size: 0.9rem; margin-right: 8px; margin-bottom: 8px;
+    }
+    button:hover { background: #0052a3; }
+    button:disabled { background: #ccc; cursor: not-allowed; }
+    button.secondary { background: #666; }
+    button.secondary:hover { background: #555; }
+    button.danger { background: #dc3545; }
+    button.danger:hover { background: #c82333; }
+
+    .warning { color: #dc3545; font-size: 0.85rem; margin-top: 2px; }
+    .sublot-form { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .sublot-form input { width: 80px; }
+
+    .shift-form { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+    .shift-form input, .shift-form select { flex: 0 0 auto; }
+    .shift-form input[type="text"] { flex: 0 0 150px; }
+
+    .status-pending { background: #f0f0f0; }
+    .status-due { background: #ffe6e6; }
+    .status-taken { background: #d4edda; }
+
+    .split-note { font-size: 0.85rem; color: #666; margin-top: 4px; padding: 4px 8px; background: #f5f5f5; border-left: 3px solid #ff9800; }
+
+    .controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+    .controls label { margin-right: 12px; }
+    .controls input[type="checkbox"] { margin-right: 4px; cursor: pointer; }
+
+    .footer { text-align: center; padding: 16px; font-size: 0.85rem; color: #666; }
+
+    .regen-warning {
+      background: #fff3cd; border: 1px solid #ffc107; padding: 8px;
+      border-radius: 3px; margin-bottom: 8px; font-size: 0.85rem;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1>PWL Asphalt Sampling Tracker &amp; Shift Log</h1>
+  <div id="banner"></div>
+
+  <div class="summary-box" style="background: #f0f8ff;">
+    <div style="display: flex; gap: 16px; align-items: center;">
+      <label style="margin: 0;">
+        <strong>Starting Lot Number:</strong>
+        <input type="number" id="startLotNo" value="100" style="width: 80px; margin-left: 8px;">
+      </label>
+      <button id="updateStartLotBtn" class="secondary" style="padding: 6px 12px; font-size: 0.9rem;">Update</button>
+      <span id="lotInfo" style="font-size: 0.9rem; color: #666;"></span>
+    </div>
+  </div>
+
+  <div class="summary-box" id="summary"></div>
+
+  <div class="wrap">
+    <section>
+      <h2>Sampling Tracker</h2>
+      <div class="controls">
+        <label><input type="checkbox" id="hideEmpty"> Hide empty sublots</label>
+        <select id="sortMode">
+          <option value="date">Sort by Date</option>
+          <option value="lot">Sort by Lot</option>
+        </select>
+        <input type="text" id="filterLot" placeholder="Filter by Lot#" style="width: 100px;">
+        <input type="text" id="filterMix" placeholder="Filter by Mix" style="width: 120px;">
+      </div>
+      <table id="samplingTable">
+        <thead>
+          <tr>
+            <th>Lot</th>
+            <th>Sublot</th>
+            <th>Sample Ton</th>
+            <th>Mix</th>
+            <th>Date</th>
+            <th>Taken</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <button class="secondary" id="newLotBtn">New Lot</button>
+    </section>
+
+    <section>
+      <h2>Shift Log</h2>
+      <div class="shift-form">
+        <input type="date" id="shiftDate" placeholder="Date">
+        <input type="text" id="shiftMix" placeholder="Mix (e.g., PMA0.5)" list="mixList" style="width: 150px;">
+        <datalist id="mixList"></datalist>
+        <input type="number" id="shiftTons" placeholder="Tons" step="0.01" min="0" style="width: 100px;">
+        <label><input type="checkbox" id="shiftBridge"> Bridge deck</label>
+        <button id="addShiftBtn">Add Shift</button>
+      </div>
+      <table id="shiftTable">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Mix</th>
+            <th>Shift Tons</th>
+            <th>Total Lot Tons</th>
+            <th>Bridge</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+  </div>
+
+  <div class="controls">
+    <button id="exportCsvBtn" class="secondary">Export CSV</button>
+    <button id="exportJsonBtn" class="secondary">Export JSON</button>
+    <button id="importJsonBtn" class="secondary">Import JSON</button>
+    <button id="selfTestBtn" class="secondary">Self-Test</button>
+    <button id="loadExampleBtn" class="secondary">Load Example Data</button>
+    <button id="clearAllBtn" class="danger">Clear All</button>
+  </div>
+
+  <div id="testResults"></div>
+
+  <div class="footer">
+    Critical business logic: <code>findSampleDate(ledger, sampleCt)</code> implements the 100-ton rule.
+    <code>generateSampleTons(lot, rng)</code> generates random sample tonnages within sublot ranges.
+  </div>
+</div>
+
+<script>
+// ============================================================================
+// CONFIG CONSTANTS (change these values here)
+// ============================================================================
+const LOT_TONS = 3500;
+const SUBLOT_TONS = 500;
+const SUBLOTS_PER_LOT = 7;
+const WINDOW_DAYS = 30;
+const STORAGE_KEY = 'pwlTracker.v1';
+
+// ============================================================================
+// UTILITIES
+// ============================================================================
+function toCt(tons) { return Math.round(tons * 100); }
+function fmtTons(ct) { return (ct / 100).toFixed(2); }
+
+function parseLocalDate(str) {
+  const [y, m, d] = str.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function fmtLocalDate(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function daysBetween(d1, d2) {
+  const ms1 = Date.UTC(d1.getFullYear(), d1.getMonth(), d1.getDate());
+  const ms2 = Date.UTC(d2.getFullYear(), d2.getMonth(), d2.getDate());
+  return Math.floor((ms2 - ms1) / 86400000);
+}
+
+function mulberry32(a) {
+  return function() {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function randInt(min, max, rng) {
+  return Math.floor(rng() * (max - min + 1)) + min;
+}
+
+function normMix(mix) {
+  return mix.trim().toLowerCase();
+}
+
+function escapeCSV(val) {
+  if (val == null) return '';
+  const str = String(val);
+  if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+    return '"' + str.replace(/"/g, '""') + '"';
+  }
+  return str;
+}
+
+// ============================================================================
+// LOT GEOMETRY
+// ============================================================================
+function lotRangeCt(lot) {
+  const start = lot.index * LOT_TONS;
+  const end = (lot.index + 1) * LOT_TONS;
+  return { start: toCt(start), end: toCt(end) };
+}
+
+function sublotRangeCt(lot, n) {
+  const lotStart = lot.index * LOT_TONS;
+  const subStart = lotStart + (n - 1) * SUBLOT_TONS;
+  const subEnd = lotStart + n * SUBLOT_TONS;
+  return { start: toCt(subStart), end: toCt(subEnd) };
+}
+
+function getLotTonnageFromLedger(lot, ledger) {
+  const range = lotRangeCt(lot);
+  const entries = ledger.filter(e => !e.excluded && e.afterCt > range.start);
+  if (entries.length === 0) return 0;
+  const lastEntry = entries[entries.length - 1];
+  return Math.min(lastEntry.afterCt, range.end) - range.start;
+}
+
+function isSampleInRange(lot, n, tonCt) {
+  const range = sublotRangeCt(lot, n);
+  return tonCt >= range.start && tonCt <= range.end;
+}
+
+// ============================================================================
+// SAMPLE GENERATION
+// ============================================================================
+function generateSampleTons(lot, rng = Math.random) {
+  const samples = [];
+  for (let n = 1; n <= SUBLOTS_PER_LOT; n++) {
+    const range = sublotRangeCt(lot, n);
+    const minTons = range.start / 100;
+    const maxTons = range.end / 100 - 0.01;
+    const tons = Math.floor(randInt(minTons * 100, maxTons * 100, rng) / 100);
+    samples.push({ tonCt: tons * 100, taken: false });
+  }
+  return samples;
+}
+
+// ============================================================================
+// SHIFT ORDERING AND RUNNING TOTALS
+// ============================================================================
+function sortShifts(shifts) {
+  return [...shifts].sort((a, b) => {
+    const dA = parseLocalDate(a.date);
+    const dB = parseLocalDate(b.date);
+    if (+dA !== +dB) return +dA - +dB;
+    return a.seq - b.seq;
+  });
+}
+
+function computeMixLedgers(state) {
+  const sorted = sortShifts(state.shifts);
+  const ledgers = {};
+
+  sorted.forEach(shift => {
+    const key = normMix(shift.mix);
+    if (!ledgers[key]) ledgers[key] = [];
+
+    const before = ledgers[key].length > 0 ? ledgers[key][ledgers[key].length - 1].afterCt : 0;
+    const excluded = shift.bridge;
+    const after = excluded ? before : before + toCt(shift.tonsCt);
+
+    ledgers[key].push({ shift, beforeCt: before, afterCt: after, excluded });
+  });
+
+  return ledgers;
+}
+
+// ============================================================================
+// LOT RECONCILIATION
+// ============================================================================
+function reconcileLots(state, ledgers, today = new Date()) {
+  const lotsForMix = {};
+  state.lots.forEach(lot => {
+    const key = normMix(lot.mix);
+    if (!lotsForMix[key]) lotsForMix[key] = [];
+    lotsForMix[key].push(lot);
+  });
+
+  state.lots.forEach(lot => {
+    const key = normMix(lot.mix);
+    lotsForMix[key].sort((a, b) => a.index - b.index);
+  });
+
+  Object.keys(ledgers).forEach(key => {
+    const ledger = ledgers[key];
+    if (ledger.length === 0) return;
+
+    const lastAfter = ledger[ledger.length - 1].afterCt;
+    const neededIndex = Math.ceil(lastAfter / toCt(LOT_TONS)) - 1;
+
+    if (!lotsForMix[key]) lotsForMix[key] = [];
+    const existing = lotsForMix[key];
+
+    const activeLots = existing.filter(lot => {
+      const createdDate = parseLocalDate(lot.createdDate);
+      return daysBetween(createdDate, today) < WINDOW_DAYS;
+    });
+
+    const lastActiveLot = activeLots.length > 0 ? Math.max(...activeLots.map(l => l.index)) : -1;
+
+    for (let idx = lastActiveLot + 1; idx <= neededIndex; idx++) {
+      const nextLotNo = state.nextLotNo === undefined ? state.settings.startLotNo + state.lots.length : state.nextLotNo;
+      const newLot = {
+        lotNo: nextLotNo,
+        mix: state.shifts.find(s => normMix(s.mix) === key).mix,
+        mixKey: key,
+        index: idx,
+        createdBy: 'auto',
+        createdDate: fmtLocalDate(today),
+        samples: Array(SUBLOTS_PER_LOT).fill(null).map(() => ({ tonCt: null, taken: false }))
+      };
+      state.nextLotNo = nextLotNo + 1;
+      existing.push(newLot);
+      state.lots.push(newLot);
+    }
+  });
+}
+
+// ============================================================================
+// SPLIT CALCULATION
+// ============================================================================
+function splitShiftAcrossLots(beforeCt, afterCt, lotsForMix) {
+  if (lotsForMix.length === 0) return [];
+
+  const sorted = [...lotsForMix].sort((a, b) => a.index - b.index);
+  const result = [];
+
+  let remaining = afterCt - beforeCt;
+  let currentCt = beforeCt;
+
+  sorted.forEach(lot => {
+    const range = lotRangeCt(lot);
+    if (currentCt >= range.end) return;
+
+    const entryPoint = Math.max(currentCt, range.start);
+    const exitPoint = Math.min(currentCt + remaining, range.end);
+
+    if (exitPoint > entryPoint) {
+      const ctInLot = exitPoint - entryPoint;
+      result.push({ lotNo: lot.lotNo, ct: ctInLot });
+      remaining -= ctInLot;
+      currentCt = exitPoint;
+    }
+  });
+
+  return result;
+}
+
+// ============================================================================
+// SAMPLE DUE DATE
+// ============================================================================
+function findSampleDate(ledger, sampleCt) {
+  for (const entry of ledger) {
+    if (entry.excluded) continue;
+    if (entry.afterCt >= sampleCt) {
+      return entry.shift.date;
+    }
+  }
+  return null;
+}
+
+function sampleStatus(totalCt, sampleCt, taken) {
+  if (sampleCt === null) return 'Pending (not generated)';
+  if (taken) return 'Taken';
+  if (totalCt >= sampleCt) return 'Due';
+  return 'Pending';
+}
+
+// ============================================================================
+// 30-DAY WINDOW
+// ============================================================================
+function lotWindow(lot, ledger, today) {
+  let firstDate = null;
+  let lotStart = toCt(lot.index * LOT_TONS);
+
+  for (const entry of ledger) {
+    if (entry.excluded) continue;
+    if (entry.beforeCt < toCt((lot.index + 1) * LOT_TONS) && entry.afterCt > lotStart) {
+      firstDate = entry.shift.date;
+      break;
+    }
+  }
+
+  if (!firstDate) return null;
+
+  const d1 = parseLocalDate(firstDate);
+  const dayN = daysBetween(d1, today) + 1;
+  let level = 'ok';
+  if (dayN >= WINDOW_DAYS + 1) level = 'over';
+  else if (dayN >= 25) level = 'warn';
+
+  return { firstDate, dayN, level };
+}
+
+// ============================================================================
+// DERIVE: PURE COMPUTATION OF ALL DERIVED STATE
+// ============================================================================
+function derive(state, today = new Date()) {
+  const ledgers = computeMixLedgers(state);
+
+  reconcileLots(state, ledgers, today);
+
+  const shiftRows = [];
+  const sortedShifts = sortShifts(state.shifts);
+  const mixTotals = {};
+
+  sortedShifts.forEach(shift => {
+    const key = normMix(shift.mix);
+    if (!mixTotals[key]) mixTotals[key] = 0;
+
+    const lotsForMix = state.lots.filter(l => l.mixKey === key);
+    const splits = shift.bridge ? [] : splitShiftAcrossLots(
+      mixTotals[key],
+      mixTotals[key] + toCt(shift.tonsCt),
+      lotsForMix
+    );
+
+    if (!shift.bridge) {
+      mixTotals[key] += toCt(shift.tonsCt);
+    }
+
+    shiftRows.push({
+      shift,
+      mixTotal: mixTotals[key],
+      splits: shift.bridge ? [] : splits
+    });
+  });
+
+  const sampleRows = [];
+  state.lots.forEach(lot => {
+    const key = normMix(lot.mix);
+    const ledger = ledgers[key] || [];
+    const lotRange = lotRangeCt(lot);
+    const lotTonnage = getLotTonnageFromLedger(lot, ledger);
+    const lotLedger = ledger.filter(e => !e.excluded && e.afterCt > lotRange.start).map(e => ({
+      ...e,
+      beforeCt: Math.max(e.beforeCt - lotRange.start, 0),
+      afterCt: Math.min(e.afterCt - lotRange.start, toCt(LOT_TONS))
+    }));
+
+    lot.samples.forEach((sample, idx) => {
+      const n = idx + 1;
+      const range = sublotRangeCt(lot, n);
+
+      let sampleDate = null;
+      let status = 'Pending';
+
+      if (sample.tonCt !== null) {
+        sampleDate = findSampleDate(lotLedger, sample.tonCt);
+        status = sampleStatus(lotTonnage, sample.tonCt, sample.taken);
+      }
+
+      const windowInfo = lotWindow(lot, ledger, today);
+
+      sampleRows.push({
+        lot,
+        sublot: n,
+        sample,
+        sampleDate,
+        status,
+        mixTotal: lotTonnage,
+        range,
+        windowInfo
+      });
+    });
+  });
+
+  // Summary
+  const summary = {};
+  Object.keys(ledgers).forEach(key => {
+    const total = ledgers[key][ledgers[key].length - 1]?.afterCt || 0;
+    summary[key] = { total, lots: [] };
+  });
+
+  state.lots.forEach(lot => {
+    const key = normMix(lot.mix);
+    if (!summary[key]) summary[key] = { total: 0, lots: [] };
+    if (!summary[key].lots.find(l => l.index === lot.index)) {
+      summary[key].lots.push({ lot, taken: 0, due: 0, waiting: 0, pending: 0 });
+    }
+  });
+
+  sampleRows.forEach(row => {
+    const key = normMix(row.lot.mix);
+    const lotSummary = summary[key].lots.find(l => l.lot.lotNo === row.lot.lotNo);
+    if (lotSummary) {
+      if (row.sample.taken) lotSummary.taken++;
+      else if (row.status === 'Due') lotSummary.due++;
+      else if (row.status.startsWith('Waiting')) lotSummary.waiting++;
+      else if (row.status === 'Pending' || row.status.includes('not generated')) lotSummary.pending++;
+    }
+  });
+
+  return { shiftRows, sampleRows, summary };
+}
+
+// ============================================================================
+// STATE MANAGEMENT
+// ============================================================================
+let state = null;
+
+function loadState() {
+  try {
+    const data = localStorage.getItem(STORAGE_KEY);
+    if (data) return JSON.parse(data);
+  } catch (e) {
+    showBanner('Error loading saved data: ' + e.message, 'error');
+  }
+  return null;
+}
+
+function saveState() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (e) {
+    showBanner('Error saving data: ' + e.message, 'error');
+  }
+}
+
+function commit() {
+  saveState();
+  render();
+}
+
+function addShift(date, mix, tons, bridge) {
+  if (!date || !mix || !tons) {
+    showBanner('Date, mix, and tons are required', 'error');
+    return;
+  }
+
+  state.shifts.push({
+    id: 'shift_' + Date.now() + '_' + Math.random(),
+    seq: state.nextSeq++,
+    date,
+    mix: mix.trim(),
+    tonsCt: parseFloat(tons),
+    bridge: !!bridge
+  });
+  commit();
+}
+
+function editShift(id, date, mix, tons, bridge) {
+  const shift = state.shifts.find(s => s.id === id);
+  if (shift) {
+    shift.date = date;
+    shift.mix = mix.trim();
+    shift.tonsCt = parseFloat(tons);
+    shift.bridge = !!bridge;
+    commit();
+  }
+}
+
+function deleteShift(id) {
+  state.shifts = state.shifts.filter(s => s.id !== id);
+  commit();
+}
+
+function createLot(mix, lotNo) {
+  const key = normMix(mix);
+  const lotsForMix = state.lots.filter(l => l.mixKey === key);
+  const maxIndex = lotsForMix.length > 0 ? Math.max(...lotsForMix.map(l => l.index)) : -1;
+
+  const nextLotNo = lotNo || (state.nextLotNo === undefined ? state.settings.startLotNo + state.lots.length : state.nextLotNo);
+  const newLot = {
+    lotNo: nextLotNo,
+    mix,
+    mixKey: key,
+    index: maxIndex + 1,
+    createdBy: 'manual',
+    createdDate: fmtLocalDate(new Date()),
+    samples: Array(SUBLOTS_PER_LOT).fill(null).map(() => ({ tonCt: null, taken: false }))
+  };
+  if (!lotNo) state.nextLotNo = nextLotNo + 1;
+
+  state.lots.push(newLot);
+  commit();
+}
+
+function generateSamples(lotNo, seed = null) {
+  const lot = state.lots.find(l => l.lotNo === lotNo);
+  if (!lot) return;
+
+  const rng = seed !== null ? mulberry32(seed) : Math.random;
+  const samples = generateSampleTons(lot, rng);
+
+  lot.samples = samples;
+  commit();
+}
+
+function regenerateSamples(lotNo, seed = null) {
+  const lot = state.lots.find(l => l.lotNo === lotNo);
+  if (!lot) return;
+
+  const rng = seed !== null ? mulberry32(seed) : Math.random;
+  const samples = generateSampleTons(lot, rng);
+
+  lot.samples = samples;
+  commit();
+}
+
+function deleteLot(lotNo) {
+  if (confirm(`Delete Lot ${lotNo}? This cannot be undone.`)) {
+    state.lots = state.lots.filter(l => l.lotNo !== lotNo);
+    commit();
+  }
+}
+
+function editSample(lotNo, sublot, tonCt) {
+  const lot = state.lots.find(l => l.lotNo === lotNo);
+  if (lot && lot.samples[sublot - 1]) {
+    lot.samples[sublot - 1].tonCt = tonCt;
+    commit();
+  }
+}
+
+function toggleTaken(lotNo, sublot) {
+  const lot = state.lots.find(l => l.lotNo === lotNo);
+  if (lot && lot.samples[sublot - 1]) {
+    lot.samples[sublot - 1].taken = !lot.samples[sublot - 1].taken;
+    commit();
+  }
+}
+
+
+// ============================================================================
+// RENDERING
+// ============================================================================
+function showBanner(msg, type = 'info') {
+  const banner = document.getElementById('banner');
+  const div = document.createElement('div');
+  div.className = 'banner ' + type;
+  div.textContent = msg;
+  banner.innerHTML = '';
+  banner.appendChild(div);
+  setTimeout(() => { if (banner.contains(div)) banner.removeChild(div); }, 5000);
+}
+
+function render() {
+  const today = new Date();
+  const derived = derive(state, today);
+
+  renderSummary(derived);
+  renderSamplingTable(derived);
+  renderShiftTable(derived);
+  updateMixList();
+  updateLotInfo();
+}
+
+function renderSummary(derived) {
+  const box = document.getElementById('summary');
+  let html = '<div class="summary-line"><strong>Totals per Mix:</strong>&nbsp;&nbsp;';
+
+  Object.keys(derived.summary).forEach((key, i) => {
+    const total = fmtTons(derived.summary[key].total);
+    const mix = state.shifts.find(s => normMix(s.mix) === key)?.mix || key;
+    if (i > 0) html += ' | ';
+    html += `<strong>${mix}:</strong> ${total} tons`;
+  });
+  html += '</div>';
+
+  Object.keys(derived.summary).forEach(key => {
+    const summ = derived.summary[key];
+    summ.lots.forEach(lotSumm => {
+      const lot = lotSumm.lot;
+      const window = derived.sampleRows.find(r => r.lot.lotNo === lot.lotNo)?.windowInfo;
+
+      let windowStr = '';
+      if (window) {
+        const styles = window.level === 'over' ? ' (⚠ EXCEEDED)' : window.level === 'warn' ? ' (⚠ day 25+)' : '';
+        windowStr = ` | Day ${window.dayN} of ${WINDOW_DAYS}${styles}`;
+      }
+
+      html += `<div class="summary-line">
+        <strong>Lot ${lot.lotNo}:</strong>
+        Taken ${lotSumm.taken} | Due ${lotSumm.due} | Waiting ${lotSumm.waiting} | Pending ${lotSumm.pending}${windowStr}
+      </div>`;
+    });
+  });
+
+  box.innerHTML = html;
+}
+
+function renderSamplingTable(derived) {
+  const tbody = document.querySelector('#samplingTable tbody');
+  const hideEmpty = document.getElementById('hideEmpty').checked;
+  const sortMode = document.getElementById('sortMode').value;
+  const filterLot = document.getElementById('filterLot').value.trim();
+  const filterMix = document.getElementById('filterMix').value.trim().toLowerCase();
+
+  let rows = derived.sampleRows;
+
+  // Hide empty
+  if (hideEmpty) {
+    rows = rows.filter(r => r.mixTotal > r.range.start);
+  }
+
+  // Filter
+  if (filterLot) {
+    const lot = parseInt(filterLot);
+    rows = rows.filter(r => r.lot.lotNo === lot);
+  }
+  if (filterMix) {
+    rows = rows.filter(r => r.lot.mixKey.includes(filterMix));
+  }
+
+  // Sort
+  if (sortMode === 'lot') {
+    rows.sort((a, b) => a.lot.lotNo !== b.lot.lotNo ? a.lot.lotNo - b.lot.lotNo : a.sublot - b.sublot);
+  } else {
+    rows.sort((a, b) => {
+      if ((a.sampleDate === null) !== (b.sampleDate === null)) return a.sampleDate === null ? 1 : -1;
+      if (a.sampleDate !== b.sampleDate) return a.sampleDate > b.sampleDate ? 1 : -1;
+      if (a.lot.lotNo !== b.lot.lotNo) return a.lot.lotNo - b.lot.lotNo;
+      return a.sublot - b.sublot;
+    });
+  }
+
+  tbody.innerHTML = '';
+  let currentLot = null;
+
+  rows.forEach(row => {
+    if (row.lot.lotNo !== currentLot) {
+      currentLot = row.lot.lotNo;
+      const lot = row.lot;
+
+      const canRegen = !row.lot.samples.some(s => {
+        if (s.tonCt === null) return false;
+        const sts = sampleStatus(row.mixTotal, s.tonCt, s.taken);
+        return sts === 'Due' || sts === 'Taken';
+      });
+
+      let headerHtml = `<tr class="lot-header">
+        <td colspan="8">
+          <strong>Lot ${lot.lotNo} (${lot.mix}, index ${lot.index})</strong>
+          <button class="secondary" style="margin-left: 16px; padding: 4px 8px; font-size: 0.8rem;" onclick="generateSamples(${lot.lotNo})">
+            Generate samples
+          </button>`;
+
+      if (canRegen) {
+        headerHtml += `<button class="secondary" style="padding: 4px 8px; font-size: 0.8rem;" onclick="if (confirm('Replace all 7 samples?')) regenerateSamples(${lot.lotNo})">Regenerate</button>`;
+      }
+
+      headerHtml += `<button class="danger" style="padding: 4px 8px; font-size: 0.8rem; margin-left: 8px;" onclick="deleteLot(${lot.lotNo})">Delete Lot</button>`;
+
+      headerHtml += '</td></tr>';
+      tbody.innerHTML += headerHtml;
+    }
+
+    const sample = row.sample;
+    const statusClass = 'status-' + row.status.split(' ')[0].toLowerCase();
+    const range = row.range;
+    const warning = sample.tonCt !== null && !isSampleInRange(row.lot, row.sublot, sample.tonCt)
+      ? `<div class="warning">⚠ Outside range [${fmtTons(range.start)}, ${fmtTons(range.end)}]</div>`
+      : '';
+
+    const takenDisabled = !row.status.includes('Due') && !sample.taken ? 'disabled' : '';
+
+    let sampleInput = 'Not generated';
+    if (sample.tonCt !== null) {
+      sampleInput = `<input type="number" value="${sample.tonCt / 100}" step="1" min="0" style="width: 60px;" onchange="editSample(${row.lot.lotNo}, ${row.sublot}, Math.round(this.value * 100))">`;
+    }
+
+    tbody.innerHTML += `<tr class="${statusClass}">
+      <td>${row.lot.lotNo}</td>
+      <td>${row.sublot}</td>
+      <td>${sampleInput}${warning}</td>
+      <td>${row.lot.mix}</td>
+      <td>${row.sampleDate || '—'}</td>
+      <td><input type="checkbox" ${sample.taken ? 'checked' : ''} ${takenDisabled} onchange="toggleTaken(${row.lot.lotNo}, ${row.sublot})"></td>
+      <td>${row.status}</td>
+    </tr>`;
+  });
+}
+
+function renderShiftTable(derived) {
+  const tbody = document.querySelector('#shiftTable tbody');
+  tbody.innerHTML = '';
+
+  derived.shiftRows.forEach((row, idx) => {
+    const shift = row.shift;
+    const total = fmtTons(row.mixTotal);
+    const bridge = shift.bridge ? 'Yes (excluded)' : '—';
+
+    let splitNote = '';
+    if (row.splits.length > 1) {
+      const splits = row.splits.map(s => `${fmtTons(s.ct)} to lot ${s.lotNo}`).join(', ');
+      splitNote = `<div class="split-note">Split: ${splits}</div>`;
+    }
+
+    tbody.innerHTML += `<tr>
+      <td>${shift.date}</td>
+      <td>${shift.mix}</td>
+      <td>${shift.tonsCt}</td>
+      <td>${total}</td>
+      <td>${bridge}</td>
+      <td>
+        <button class="secondary" style="padding: 4px 8px; font-size: 0.8rem;" onclick="editShiftUI('${shift.id}')">Edit</button>
+        <button class="danger" style="padding: 4px 8px; font-size: 0.8rem;" onclick="if (confirm('Delete this shift?')) deleteShift('${shift.id}')">Delete</button>
+      </td>
+    </tr>${splitNote ? '<tr><td colspan="6">' + splitNote + '</td></tr>' : ''}`;
+  });
+}
+
+function updateMixList() {
+  const mixes = [...new Set(state.shifts.map(s => s.mix))];
+  const list = document.getElementById('mixList');
+  list.innerHTML = mixes.map(m => `<option value="${m}">`).join('');
+}
+
+function editShiftUI(id) {
+  const shift = state.shifts.find(s => s.id === id);
+  if (!shift) return;
+
+  document.getElementById('shiftDate').value = shift.date;
+  document.getElementById('shiftMix').value = shift.mix;
+  document.getElementById('shiftTons').value = shift.tonsCt;
+  document.getElementById('shiftBridge').checked = shift.bridge;
+
+  const btn = document.getElementById('addShiftBtn');
+  const oldText = btn.textContent;
+  const origHandler = btn.onclick;
+  btn.textContent = 'Update Shift';
+  btn.onclick = () => {
+    editShift(id, document.getElementById('shiftDate').value, document.getElementById('shiftMix').value, document.getElementById('shiftTons').value, document.getElementById('shiftBridge').checked);
+    document.getElementById('shiftDate').value = '';
+    document.getElementById('shiftMix').value = '';
+    document.getElementById('shiftTons').value = '';
+    document.getElementById('shiftBridge').checked = false;
+    btn.textContent = oldText;
+    btn.onclick = origHandler;
+  };
+}
+
+// ============================================================================
+// EXPORT AND IMPORT
+// ============================================================================
+function exportCSV() {
+  const derived = derive(state);
+
+  let csv = 'Lot,Sublot,Sample Tons,Mix,Date,Taken,Status\n';
+  derived.sampleRows.forEach(row => {
+    csv += `${row.lot.lotNo},${row.sublot},${row.sample.tonCt === null ? '' : row.sample.tonCt / 100},${escapeCSV(row.lot.mix)},${row.sampleDate || ''},${row.sample.taken ? 'Yes' : ''},${escapeCSV(row.status)}\n`;
+  });
+
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'sampling.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+
+  csv = 'Date,Mix,Shift Tons,Total Lot Tons,Bridge\n';
+  derived.shiftRows.forEach(row => {
+    csv += `${row.shift.date},${escapeCSV(row.shift.mix)},${row.shift.tonsCt},${fmtTons(row.mixTotal)},${row.shift.bridge ? 'Yes' : ''}\n`;
+  });
+
+  const blob2 = new Blob([csv], { type: 'text/csv' });
+  const url2 = URL.createObjectURL(blob2);
+  const a2 = document.createElement('a');
+  a2.href = url2;
+  a2.download = 'shifts.csv';
+  a2.click();
+  URL.revokeObjectURL(url2);
+
+  showBanner('CSV exported', 'success');
+}
+
+function exportJSON() {
+  const json = JSON.stringify(state, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'pwl-tracker.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  showBanner('JSON exported', 'success');
+}
+
+function importJSON() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+  input.onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const imported = JSON.parse(ev.target.result);
+        if (!imported.shifts || !Array.isArray(imported.shifts)) throw new Error('Invalid format');
+
+        if (!confirm('Replace current data with imported data?')) return;
+        state = imported;
+        saveState();
+        render();
+        showBanner('Data imported', 'success');
+      } catch (err) {
+        showBanner('Import failed: ' + err.message, 'error');
+      }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
+function clearAll() {
+  if (!confirm('Clear all data? This cannot be undone.')) return;
+  state = {
+    version: 1,
+    settings: { startLotNo: 100 },
+    nextSeq: 100,
+    nextLotNo: 100,
+    shifts: [],
+    lots: [],
+    ui: { sortMode: 'date', filterLot: '', filterMix: '', hideEmpty: false }
+  };
+  commit();
+  showBanner('All data cleared', 'success');
+}
+
+// ============================================================================
+// EXAMPLE DATA AND SELF-TEST
+// ============================================================================
+function loadExampleData() {
+  if (!confirm('Replace current data with example data?')) return;
+
+  state = {
+    version: 1,
+    settings: { startLotNo: 100 },
+    nextSeq: 103,
+    nextLotNo: 103,
+    shifts: [
+      { id: 's1', seq: 100, date: '2026-06-30', mix: 'PMA0.5', tonsCt: 1081, bridge: false },
+      { id: 's2', seq: 101, date: '2026-07-05', mix: 'PMA0.5', tonsCt: 600, bridge: false },
+      { id: 's3', seq: 102, date: '2026-07-09', mix: 'PMA0.5', tonsCt: 1480, bridge: false },
+      { id: 's4', seq: 103, date: '2026-07-16', mix: 'PMA1.0', tonsCt: 860, bridge: false },
+      { id: 's5', seq: 104, date: '2026-07-21', mix: 'PMA0.5', tonsCt: 830, bridge: false }
+    ],
+    lots: [
+      {
+        lotNo: 100,
+        mix: 'PMA0.5',
+        mixKey: 'pma0.5',
+        index: 0,
+        createdBy: 'manual',
+        createdDate: '2026-07-10',
+        samples: [
+          { tonCt: toCt(360), taken: false },
+          { tonCt: toCt(606), taken: false },
+          { tonCt: toCt(1200), taken: false },
+          { tonCt: toCt(1693), taken: false },
+          { tonCt: toCt(2321), taken: false },
+          { tonCt: toCt(2631), taken: false },
+          { tonCt: toCt(3133), taken: false }
+        ]
+      },
+      {
+        lotNo: 101,
+        mix: 'PMA1.0',
+        mixKey: 'pma1.0',
+        index: 0,
+        createdBy: 'auto',
+        createdDate: '2026-07-15',
+        samples: [
+          { tonCt: toCt(200), taken: false },
+          { tonCt: toCt(646), taken: false },
+          { tonCt: null, taken: false },
+          { tonCt: null, taken: false },
+          { tonCt: null, taken: false },
+          { tonCt: null, taken: false },
+          { tonCt: null, taken: false }
+        ]
+      },
+      {
+        lotNo: 102,
+        mix: 'PMA0.5',
+        mixKey: 'pma0.5',
+        index: 1,
+        createdBy: 'auto',
+        createdDate: '2026-07-20',
+        samples: [
+          { tonCt: toCt(3750), taken: false },
+          { tonCt: null, taken: false },
+          { tonCt: null, taken: false },
+          { tonCt: null, taken: false },
+          { tonCt: null, taken: false },
+          { tonCt: null, taken: false },
+          { tonCt: null, taken: false }
+        ]
+      }
+    ],
+    ui: { sortMode: 'date', filterLot: '', filterMix: '', hideEmpty: false }
+  };
+  commit();
+  showBanner('Example data loaded', 'success');
+}
+
+function runSelfTest() {
+  const tests = [];
+
+  // Test A: Example data validation
+  const testState = JSON.parse(JSON.stringify(state));
+  const derived = derive(testState);
+
+  const expectedTotals = { 'pma0.5': 3991, 'pma1.0': 860 };
+  let testA = true;
+  Object.entries(expectedTotals).forEach(([key, expected]) => {
+    const actual = derived.summary[key]?.total || 0;
+    if (Math.abs(actual - toCt(expected)) > 1) testA = false;
+  });
+  tests.push({ name: 'A. Example data totals', pass: testA });
+
+  // Test B: Sample due when total reaches sample tonnage
+  const testState2 = {
+    version: 1,
+    settings: { startLotNo: 100 },
+    nextSeq: 100,
+    shifts: [
+      { id: 's1', seq: 100, date: '2026-01-01', mix: 'Test', tonsCt: 3133, bridge: false }
+    ],
+    lots: [
+      {
+        lotNo: 100,
+        mix: 'Test',
+        mixKey: 'test',
+        index: 0,
+        createdBy: 'manual',
+        samples: [
+          { tonCt: toCt(3133), taken: false },
+          null, null, null, null, null, null
+        ].map(s => s === null ? { tonCt: null, taken: false } : s)
+      }
+    ],
+    ui: {}
+  };
+  const derived2 = derive(testState2);
+  const sample = derived2.sampleRows[0];
+  const testB = sample.status === 'Due';
+  tests.push({ name: 'B. Sample due at sample tonnage', pass: testB });
+
+  // Test C: Generation validation
+  let testC = true;
+  for (let i = 0; i < 100; i++) {
+    const lot = { index: 0, mixKey: 'test' };
+    const samples = generateSampleTons(lot, mulberry32(42 + i));
+    samples.forEach((s, idx) => {
+      if (!isSampleInRange(lot, idx + 1, s.tonCt)) {
+        testC = false;
+      }
+    });
+  }
+  tests.push({ name: 'C. Generation within sublot ranges', pass: testC });
+
+  // Test D: Split calculation
+  const testState3 = {
+    version: 1,
+    settings: { startLotNo: 100 },
+    nextSeq: 100,
+    shifts: [
+      { id: 's1', seq: 100, date: '2026-01-01', mix: 'Test', tonsCt: 3300, bridge: false },
+      { id: 's2', seq: 101, date: '2026-01-02', mix: 'Test', tonsCt: 830, bridge: false }
+    ],
+    lots: [],
+    ui: {}
+  };
+  const derived3 = derive(testState3);
+  const splits = derived3.shiftRows[1]?.splits || [];
+  const testD = splits.length === 2 && splits[0].ct === toCt(200) && splits[1].ct === toCt(630);
+  tests.push({ name: 'D. Split calculation (339 + 491)', pass: testD });
+
+  // Test E: Bridge deck excluded
+  const testState4 = {
+    version: 1,
+    settings: { startLotNo: 100 },
+    nextSeq: 100,
+    shifts: [
+      { id: 's1', seq: 100, date: '2026-01-01', mix: 'Test', tonsCt: 100, bridge: true }
+    ],
+    lots: [],
+    ui: {}
+  };
+  const derived4 = derive(testState4);
+  const testE = (derived4.summary['test']?.total || 0) === 0;
+  tests.push({ name: 'E. Bridge deck excluded from totals', pass: testE });
+
+  const resultsDiv = document.getElementById('testResults');
+  resultsDiv.innerHTML = '<div class="summary-box"><h2>Self-Test Results</h2>' +
+    tests.map(t => `<div class="summary-line">${t.pass ? '✓' : '✗'} ${t.name}</div>`).join('') +
+    '</div>';
+
+  showBanner(`Self-test: ${tests.filter(t => t.pass).length}/${tests.length} passed`, tests.every(t => t.pass) ? 'success' : 'error');
+}
+
+// ============================================================================
+// INITIALIZATION
+// ============================================================================
+document.addEventListener('DOMContentLoaded', () => {
+  state = loadState();
+
+  if (!state) {
+    loadExampleData();
+  } else {
+    render();
+  }
+
+  // Event listeners
+  document.getElementById('addShiftBtn').onclick = () => {
+    addShift(
+      document.getElementById('shiftDate').value,
+      document.getElementById('shiftMix').value,
+      document.getElementById('shiftTons').value,
+      document.getElementById('shiftBridge').checked
+    );
+    document.getElementById('shiftDate').value = '';
+    document.getElementById('shiftMix').value = '';
+    document.getElementById('shiftTons').value = '';
+    document.getElementById('shiftBridge').checked = false;
+  };
+
+  document.getElementById('newLotBtn').onclick = () => {
+    const mix = prompt('Enter mix name (e.g., PMA0.5):');
+    if (mix) {
+      createLot(mix.trim());
+    }
+  };
+
+  document.getElementById('hideEmpty').onchange = render;
+  document.getElementById('sortMode').onchange = render;
+  document.getElementById('filterLot').oninput = render;
+  document.getElementById('filterMix').oninput = render;
+
+  document.getElementById('exportCsvBtn').onclick = exportCSV;
+  document.getElementById('exportJsonBtn').onclick = exportJSON;
+  document.getElementById('importJsonBtn').onclick = importJSON;
+  document.getElementById('selfTestBtn').onclick = runSelfTest;
+  document.getElementById('loadExampleBtn').onclick = loadExampleData;
+  document.getElementById('clearAllBtn').onclick = clearAll;
+
+  const startLotNoInput = document.getElementById('startLotNo');
+  const updateBtn = document.getElementById('updateStartLotBtn');
+  if (startLotNoInput && updateBtn) {
+    startLotNoInput.value = state.settings.startLotNo;
+    updateBtn.onclick = () => {
+      const newStart = parseInt(startLotNoInput.value);
+      if (isNaN(newStart) || newStart < 1) {
+        showBanner('Starting lot number must be a positive integer', 'error');
+        return;
+      }
+      state.settings.startLotNo = newStart;
+      state.nextLotNo = newStart;
+      saveState();
+      updateLotInfo();
+      showBanner(`Starting lot number updated to ${newStart}`, 'success');
+    };
+    updateLotInfo();
+  }
+});
+
+function updateLotInfo() {
+  try {
+    const info = document.getElementById('lotInfo');
+    if (!info || !state) return;
+    const currentMax = state.lots.length > 0 ? Math.max(...state.lots.map(l => l.lotNo)) : state.settings.startLotNo - 1;
+    const nextLot = state.nextLotNo === undefined ? state.settings.startLotNo + state.lots.length : state.nextLotNo;
+    info.textContent = `Next lot: ${nextLot} | Last lot: ${currentMax}`;
+  } catch (e) {
+    console.error('updateLotInfo error:', e);
+  }
+}
+</script>
+
+</body>
+</html>
