@@ -22,7 +22,14 @@ import json
 import logging
 from datetime import datetime
 
-from config import thorp_params, stocks_universe
+import sys
+from pathlib import Path
+
+# Add ai_statarb directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent))
+
+import config.thorp_params as thorp_params
+import config.stocks_universe as stocks_universe
 from models.thorp_warrant import ThorpWarrantModel, create_valuation_snapshot
 from sizing.kelly import KellyCriterion, PortfolioKellySizing, TradeStatistics
 from data.data_fetcher import DataFetcher, setup_data_fetcher
