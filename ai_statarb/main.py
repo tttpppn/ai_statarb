@@ -28,12 +28,12 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from config import thorp_params
-from config import stocks_universe
+from config.thorp_params import *
+from config.stocks_universe import *
 from models.thorp_warrant import ThorpWarrantModel, create_valuation_snapshot
 from sizing.kelly import KellyCriterion, PortfolioKellySizing, TradeStatistics
 from data.data_fetcher import DataFetcher, setup_data_fetcher
-from integrations import AI4TradePublisher
+from integrations.ai4trade_publisher import AI4TradePublisher
 
 # Setup logging
 logging.basicConfig(
