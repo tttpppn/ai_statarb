@@ -29,7 +29,8 @@ jobs:
         env:
           AI4TRADE_API_TOKEN: ${{ secrets.AI4TRADE_API_TOKEN }}
         run: |
-          python ai_statarb/main.py --mode paper-trade
+          cd ai_statarb
+          python main.py --mode paper-trade
 
       - name: Log results
         if: always()
