@@ -28,7 +28,8 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from config import thorp_params, stocks_universe
+from config import thorp_params
+from config import stocks_universe
 from models.thorp_warrant import ThorpWarrantModel, create_valuation_snapshot
 from sizing.kelly import KellyCriterion, PortfolioKellySizing, TradeStatistics
 from data.data_fetcher import DataFetcher, setup_data_fetcher
